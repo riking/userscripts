@@ -8,6 +8,8 @@
 // @version 0.4.4
 // ==/UserScript==
 
+/* jshint multistr: true */
+
 (function() {
     "use strict";
 
@@ -61,15 +63,15 @@
         String.prototype.format = function() {
             var args = arguments;
             return this.replace(/{(\d+)}/g, function(match, number) {
-                return typeof args[number] != 'undefined'
-                    ? args[number]
-                    : match
-                    ;
+                return typeof args[number] != 'undefined' ? args[number] : match;
             });
         };
     }
 
     function filledArray(length, value) {
+        // the Array(length) call, without 'new', is correct.
+        // somehow. Not sure why. weird stuff.
+
         //noinspection JSPotentiallyInvalidConstructorUsage
         return Array.apply(null, Array(length)).map(function() {
             return value;
@@ -78,6 +80,8 @@
 
     // ############################################################
     // ## Constants, CSS, HTML
+
+    /* jshint ignore: start */
 
     var DATA_VERSION = 3;
 
@@ -170,6 +174,8 @@
 
     var JUMPER_ITEM_HTML = '<span class="unread-comments-jump"><a href="#{0}">#{1}</a></span>';
 
+    /* jshint ignore: end */
+
     // ############################################################
     // ## Helper Functions
 
@@ -226,7 +232,7 @@
                     }
                     if (callback) callback();
                 });
-            }
+            };
         } else {
             // Put our internal API in the Storage prototype
             // localStorage is a synchronous API, but chrome.storage is synchronous
@@ -263,7 +269,8 @@
                 "(Or remove the unread comments script.)");
             throw new Error("localstorage failure");
         }
-        return _storage = storage;
+        _storage = storage;
+        return _storage;
     }
 
     function getComicNumbers() {
@@ -395,8 +402,10 @@
      * @returns {Array} all comments on the page
      */
     function getAllComments() {
-        if (_$comments) return _$comments;
-        return _$comments = $('.comment');
+        if (! _$comments) {
+            _$comments = $('.comment');
+        }
+        return _$comments;
     }
 
     var _$comments;
@@ -608,7 +617,7 @@
                 inputCurrent = getPageReadData(readData);
                 editFunc = function(readData, dateObject) {
                     readData.lastReadPerPage[getPageNumber()] = dateInput.getTime();
-                }
+                };
             } else {
                 console.error("Bad click event target! Expected a data-target value of 'comic' or 'page'", e);
                 return;
