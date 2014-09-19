@@ -5,7 +5,7 @@
 // @match http://grrlpowercomic.com/archives/*
 // @match http://grrlpowercomic.com/archives/*/comment-page-*
 // @require https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
-// @version 0.3
+// @version 0.4-SNAPSHOT
 // ==/UserScript==
 
 (function() {
