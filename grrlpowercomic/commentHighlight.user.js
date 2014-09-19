@@ -133,7 +133,7 @@
     <div class="unread-comments-response unread-comments-msg">&zwnj;</span> \
 </div>';
 
-    const JUMPER_ITEM_HTML = '<span class="unread-comment-jump"><a href="{0}">#{1}</a></span>';
+    const JUMPER_ITEM_HTML = '<span class="unread-comment-jump"><a href="#{0}">#{1}</a></span>';
 
     // ############################################################
     // ## Helper Functions
@@ -408,6 +408,19 @@
         }
     }
 
+    function insertJumperLinks() {
+        var $highlighted = $('.comment.unread');
+        if ($highlighted.length > 0 && $highlighted.length < 10) {
+            // WARNING - ARGUMENT ORDER IS FLIPPED FROM Array.map()
+            var jumpLinks = $highlighted.map(function(index, domComment) {
+                return jQuery.parseHTML(JUMPER_ITEM_HTML.format(domComment.id, index));
+            });
+
+            $('.unread-comments-jumper').append($(jumpLinks));
+        }
+    }
+
+
     /**
      * @param readData
      * @param [callback]
@@ -586,6 +599,7 @@
             getComicReadData(function(readData) {
                 addControls(readData); // sync
                 doHighlight(readData); // sync
+                insertJumperLinks(); // sync
                 saveFirstVisit(readData); // asynchronous
 
                 console.info("Grrl Power Comment Highlight script complete.");
