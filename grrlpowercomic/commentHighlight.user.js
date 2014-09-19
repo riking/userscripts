@@ -52,10 +52,16 @@
         };
     }
 
+    function filledArray(length, value) {
+        return new Array(length).map(function() {
+            return value;
+        });
+    }
+
     // ############################################################
     // ## Constants, CSS, HTML
 
-    const DATA_VERSION = 2;
+    const DATA_VERSION = 3;
 
     const SERVER_TIMEZONE = "-0500";
 
@@ -167,7 +173,8 @@
 
             // Put in our internal API
             storage.setObject = function(key, value, callback) {
-                var req = {}; req[key] = JSON.stringify(value);
+                var req = {};
+                req[key] = JSON.stringify(value);
                 this.set(req, function() {
                     if (chrome.runtime.lastError) {
                         console.error(chrome.runtime.lastError);
@@ -209,7 +216,9 @@
 
             Storage.prototype.getObject = function(key, callback) {
                 var value = JSON.parse(this.getItem(key));
-                setTimeout(function() { callback(value); }, 0);
+                setTimeout(function() {
+                    callback(value);
+                }, 0);
             };
 
             Storage.prototype.removeObject = function(key, callback) {
@@ -269,14 +278,13 @@
             if (!readData) {
                 readData = {
                     _V: DATA_VERSION,
-                    lastReadComic: null,
+                    lastReadComic: -1,
                     /**
                      * 1-indexed array of last-read times for the comic.
                      * Indexed by comment page number.
                      */
-                    lastReadPerPage: new Array(getPageCount())
+                    lastReadPerPage: filledArray(getPageCount() + 1, -1)
                 };
-                readData.lastReadPerPage.fill(-1);
             }
 
             // DATA MIGRATIONS START
@@ -286,6 +294,16 @@
                     delete readData.VERSION;
                     readData._V = 2;
                 }
+                // Ensure the lastReadPerPage array is full size
+                if (readData._V === 2) {
+                    var arr = readData.lastReadPerPage;
+                    arr.length = getPageCount();
+                    readData._V = 3;
+                }
+
+                // ^ migrating code
+                // ---- fence
+                // v migration wrap-up
 
                 if (readData._V !== DATA_VERSION) {
                     throw new Error("bad data migrations - failed to update version on every possible path");
@@ -314,32 +332,7 @@
         });
     }
 
-    /**
-     * Get the per-page read data from the result of
-     * {@link getComicReadData()}, filling in the array with -1 values if
-     * values are missing.
-     *
-     * @param readData {Object} result of {@link getComicReadData()}
-     * @param [pageNumber] {Number} comment page # to get the data for
-     * @param [fillDate] date to insert for missing values
-     * @return {Number} last-read unix millis (-1 for missing data)
-     */
-    function fillPageReadData(readData, pageNumber, fillDate) {
-        if (!pageNumber) {
-            pageNumber = getPageNumber();
-        }
-        if (!fillDate) {
-            fillDate = -1;
-        }
-
-        var dataArray = readData.lastReadPerPage;
-        while (dataArray.length <= pageNumber) {
-            dataArray.push(fillDate);
-        }
-    }
-
     function getPageReadData(readData) {
-        fillPageReadData(readData);
         return readData.lastReadPerPage[getPageNumber()];
     }
 
@@ -428,18 +421,26 @@
         if (readData.lastReadComic === -1) {
             var timestamp = Date.now();
             readData.lastReadComic = timestamp;
-            fillPageReadData(readData, getPageNumber(), timestamp);
+            // fill per-page with current time
+            readData.lastReadPerPage = filledArray(getPageCount() + 1, timestamp);
 
             saveComicReadData(readData, callback);
         }
     }
 
-    // ############################################################
-
     function rehighlight(readData) {
         getAllComments().removeClass('unread');
         doHighlight(readData);
     }
+
+    // @export
+    function deleteAllData() {
+        var storage = getStorage();
+        storage.clear();
+    }
+
+    // ############################################################
+    // ## Button methods
 
     function clickMarkRead(e) {
         var $button = $(e.target);
@@ -449,9 +450,6 @@
 
         $button.attr('disabled', 1);
         getComicReadData(function(readData) {
-            // fill the array
-            fillPageReadData(readData, pageNumber);
-
             readData.lastReadComic = now;
             readData.lastReadPerPage[pageNumber] = now;
 
@@ -497,7 +495,9 @@
             } else {
                 date = input;
             }
-            if (date.getTime() === -1) { date = new Date(); }
+            if (date.getTime() === -1) {
+                date = new Date();
+            }
 
             return date.toDateString() + " " + date.toLocaleTimeString();
         }
@@ -581,10 +581,6 @@
     // ############################################################
 
     function onReady() {
-        console.log(window.location);
-        console.log(document.location);
-        console.log(window.localStorage);
-
         // add styles
         var css = document.createElement('style');
         css.innerHTML = STYLE;
@@ -596,8 +592,8 @@
                 addControls(readData); // sync
                 doHighlight(readData); // sync
                 saveFirstVisit(readData); // asynchronous
+
                 console.info("Grrl Power Comment Highlight script complete.");
-                console.log(readData);
             });
         });
     }
