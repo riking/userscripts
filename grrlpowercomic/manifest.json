@@ -4,7 +4,9 @@
     "version": "0.4.1",
 
     "description": "Highlights new comments on the Grrl Power comic pages when you come back to them.",
-    "icons": { /* TODO */ },
+    "icons": {
+        "128": "icon_128.png"
+    },
 
     "author": "Riking",
     "content_scripts": [{
@@ -14,7 +16,4 @@
         ],
         "js": ["jquery.min.js", "commentHighlight.user.js"]
     }]
-//    "permissions": [
-//        "storage",
-//    ]
 }

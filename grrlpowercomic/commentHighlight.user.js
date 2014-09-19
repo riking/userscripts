@@ -258,7 +258,7 @@
             recognized: !!matches,
             articleType: matches && matches[1],
             articleNumber: matches && matches[2],
-            page: Number((matches && matches[3]) || ($(".page.current").first().text()))
+            page: Number((matches && matches[3]) || ($(".page.current").first().text())) || 1
         };
     }
 
@@ -267,7 +267,7 @@
     }
 
     function getPageCount() {
-        return Number($('.wp-paginate-comments .page').last().text());
+        return Number($('.wp-paginate-comments .page').last().text()) || 1;
     }
 
     function getComicDataKey() {
@@ -293,6 +293,11 @@
                      */
                     lastReadPerPage: filledArray(getPageCount() + 1, -1)
                 };
+            }
+
+            // Fill in data for new pages that were added
+            while (readData.lastReadPerPage.length < (getPageCount() + 1)) {
+                readData.lastReadPerPage.push(readData.lastReadComic);
             }
 
             // DATA MIGRATIONS START
@@ -388,7 +393,14 @@
     function addControls() {
         // Add the controls into the document (in 2 locations!)
         var controls = jQuery.parseHTML(CONTROLS_HTML);
-        $('#comment-wrapper .commentnav').after(controls);
+        var $nav = $('#comment-wrapper .commentnav');
+        if ($nav.length) {
+            $nav.after(controls);
+        } else {
+            // Single page of comments
+            $('.commentsrsslink, #respond').before(controls);
+        }
+
         var $controls = $('#comment-wrapper .unread-comments-controls');
 
         $controls.find('.unread-comments-mark').click(clickMarkRead);
@@ -458,6 +470,8 @@
             readData.lastReadPerPage = filledArray(getPageCount() + 1, timestamp);
 
             saveComicReadData(readData, callback);
+        } else {
+            setTimeout(callback, 0);
         }
     }
 
@@ -565,7 +579,7 @@
             if (e.target.dataset.target === "comic") {
                 inputPrompt = "" +
                     currentData +
-                    "Edit the new last-read time for the comic & current page:";
+                    "Edit the new last-read time for newly added pages & the current page:";
                 inputCurrent = readData.lastReadComic;
                 editFunc = function(readData, dateInput) {
                     // let's be nice to the user and set it for both the comic and the page
@@ -624,9 +638,9 @@
             getComicReadData(function(readData) {
                 addControls(readData); // sync
                 doHighlight(readData); // sync
-                saveFirstVisit(readData); // asynchronous
-
-                console.info("Grrl Power Comment Highlight script complete.");
+                saveFirstVisit(readData, function() {
+                    console.info("Grrl Power Comment Highlight script initialized.");
+                }); // asynchronous
             });
         });
     }
