@@ -75,9 +75,9 @@
      *
      * @type {RegExp}
      */
-    var URL_MATCHER = /grrlpowercomic\.com\/([^\/]+)\/(\d+)(?:\/comment-page(\d+))?/;
+    const URL_MATCHER = /grrlpowercomic\.com\/([^\/]+)\/(\d+)(?:\/comment-page(\d+))?/;
 
-    var STYLE = heredoc(function() { /*
+    const STYLE = heredoc(function() { /*
      .comment.unread > .comment-content {
      background-color: rgb(242, 225, 186);
      }
@@ -128,9 +128,10 @@
      */
     });
 
-    var CONTROLS_HTML = heredoc(function() {/*
+    const CONTROLS_HTML = heredoc(function() {/*
      <div class="unread-comments-controls">
      <div class="unread-comments-status unread-comments-msg">&zwnj;</div>
+     <div class="unread-comments-jumper"></div>
      <button class="unread-comments-mark unread-comments-btn">Mark Comments Read</button>
      <button class="unread-comments-clear unread-comments-btn">Reset All Pages</button>
      <span class="unread-comments-set-container">
