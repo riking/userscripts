@@ -31,6 +31,11 @@
     var isExtension = false; // !!chrome.extension;
 
     var addJquery = function(callback) {
+        if (window.jQuery) {
+            // jQuery is already loaded, yay
+            return callback();
+        }
+
         // Add jQuery
         var jq = document.createElement('script');
         jq.src = "//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js";
