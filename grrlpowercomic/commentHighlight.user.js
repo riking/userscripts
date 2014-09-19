@@ -35,11 +35,6 @@
         document.getElementsByTagName('head')[0].appendChild(jq);
     };
 
-    // Multiline Function String - Nate Ferrero - Public Domain
-    function heredoc(f) {
-        return f.toString().match(/\/\*\s*([\s\S]*?)\s*\*\//m)[1];
-    }
-
     if (!String.prototype.format) {
         String.prototype.format = function() {
             var args = arguments;
@@ -77,70 +72,68 @@
      */
     const URL_MATCHER = /grrlpowercomic\.com\/([^\/]+)\/(\d+)(?:\/comment-page(\d+))?/;
 
-    const STYLE = heredoc(function() { /*
-     .comment.unread > .comment-content {
-     background-color: rgb(242, 225, 186);
-     }
+    const STYLE = "\
+.wp-paginate.wp-paginate-comments li > *:not(.title) { \
+    padding: 20px; \
+} \
+\
+.wp-paginate.wp-paginate-comments a.next, .wp-paginate.wp-paginate-comments a.prev { \
+    background: rgb(220, 240, 215); \
+} \
+\
+.commentnav { \
+    padding: 20px 0; \
+} \
+\
+.commentsrsslink { \
+    float: left; \
+} \
+.comment.unread { \
+    background-color: rgb(242, 225, 186); \
+} \
+\
+.unread-comments-controls { \
+    margin: 6px 0; \
+} \
+\
+.unread-comments-clear { \
+} \
+\
+.unread-comments-set-container { \
+    margin-left: 6px; \
+} \
+\
+.unread-comments-msg.info { \
+    color: rgb(115, 115, 221); \
+} \
+.unread-comments-msg.success { \
+    color: rgb(35, 137, 44) \
+} \
+.unread-comments-msg.error { \
+    color: rgb(207, 53, 53); \
+} \
+\
+.unread-comments-status.success { \
+    color: rgb(237, 159, 17); \
+    font-size: 16px; \
+    font-weight: bold; \
+    margin-bottom: 3px; \
+}\
+";
 
-     .wp-paginate.wp-paginate-comments li > *:not(.title) {
-     padding: 20px;
-     }
+    const CONTROLS_HTML = ' \
+<div class="unread-comments-controls"> \
+    <div class="unread-comments-status unread-comments-msg">&zwnj;</div> \
+    <div class="unread-comments-jumper"></div> \
+    <button class="unread-comments-mark unread-comments-btn">Mark Comments Read</button> \
+    <button class="unread-comments-clear unread-comments-btn">Reset All Pages</button> \
+    <span class="unread-comments-set-container"> \
+        Edit Read Data: [<a href class="unread-comments-set" data-target="comic">Comic</a>] [<a href class="unread-comments-set" data-target="page">Page</a>] \
+    </span> \
+    <div class="unread-comments-response unread-comments-msg">&zwnj;</span> \
+</div>';
 
-     .wp-paginate.wp-paginate-comments a.next, .wp-paginate.wp-paginate-comments a.prev {
-     background: rgb(220, 240, 215);
-     }
-
-     .commentnav {
-     padding: 20px 0;
-     }
-
-     .commentsrsslink {
-     float: left;
-     }
-
-     .unread-comments-controls {
-     margin: 6px 0;
-     }
-
-     .unread-comments-clear {
-     }
-
-     .unread-comments-set-container {
-     margin-left: 6px;
-     }
-
-     .unread-comments-msg.info {
-     color: rgb(115, 115, 221);
-     }
-     .unread-comments-msg.success {
-     color: rgb(35, 137, 44)
-     }
-     .unread-comments-msg.error {
-     color: rgb(207, 53, 53);
-     }
-
-     .unread-comments-status.success {
-     color: rgb(237, 159, 17);
-     font-size: 16px;
-     font-weight: bold;
-     margin-bottom: 3px;
-     }
-     */
-    });
-
-    const CONTROLS_HTML = heredoc(function() {/*
-     <div class="unread-comments-controls">
-     <div class="unread-comments-status unread-comments-msg">&zwnj;</div>
-     <div class="unread-comments-jumper"></div>
-     <button class="unread-comments-mark unread-comments-btn">Mark Comments Read</button>
-     <button class="unread-comments-clear unread-comments-btn">Reset All Pages</button>
-     <span class="unread-comments-set-container">
-     Edit Read Data: [<a href class="unread-comments-set" data-target="comic">Comic</a>] [<a href class="unread-comments-set" data-target="page">Page</a>]
-     </span>
-     <div class="unread-comments-response unread-comments-msg">&zwnj;</span>
-     </div>
-     */
-    });
+    const JUMPER_ITEM_HTML = '<span class="unread-comment-jump"><a href="{0}">#{1}</a></span>';
 
     // ############################################################
     // ## Helper Functions
