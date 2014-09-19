@@ -75,43 +75,43 @@
     const STYLE = "\
 .wp-paginate.wp-paginate-comments li > *:not(.title) { \
     padding: 20px; \
-} \
+}\
 \
 .wp-paginate.wp-paginate-comments a.next, .wp-paginate.wp-paginate-comments a.prev { \
     background: rgb(220, 240, 215); \
-} \
+}\
 \
 .commentnav { \
     padding: 20px 0; \
-} \
+}\
 \
 .commentsrsslink { \
     float: left; \
-} \
+}\
 .comment.unread { \
     background-color: rgb(242, 225, 186); \
-} \
+}\
 \
 .unread-comments-controls { \
     margin: 6px 0; \
-} \
+}\
 \
 .unread-comments-clear { \
-} \
+}\
 \
 .unread-comments-set-container { \
     margin-left: 6px; \
-} \
+}\
 \
 .unread-comments-msg.info { \
     color: rgb(115, 115, 221); \
-} \
+}\
 .unread-comments-msg.success { \
     color: rgb(35, 137, 44) \
-} \
+}\
 .unread-comments-msg.error { \
     color: rgb(207, 53, 53); \
-} \
+}\
 \
 .unread-comments-status.success { \
     color: rgb(237, 159, 17); \
@@ -119,12 +119,25 @@
     font-weight: bold; \
     margin-bottom: 3px; \
 }\
+\
+.unread-comments-jump a { \
+    margin: 1px; \
+    padding: 4px; \
+}\
+\
+.unread-comments-jumper { \
+    margin: 5px 0; \
+}\
+\
+.hidden {\
+  display: none;\
+}\
 ";
 
     const CONTROLS_HTML = ' \
 <div class="unread-comments-controls"> \
     <div class="unread-comments-status unread-comments-msg">&zwnj;</div> \
-    <div class="unread-comments-jumper"></div> \
+    <div class="unread-comments-jumper hidden"><span class="unread-comments-jumper-instructions">Jump to unread: </span></div> \
     <button class="unread-comments-mark unread-comments-btn">Mark Comments Read</button> \
     <button class="unread-comments-clear unread-comments-btn">Reset All Pages</button> \
     <span class="unread-comments-set-container"> \
@@ -133,7 +146,7 @@
     <div class="unread-comments-response unread-comments-msg">&zwnj;</span> \
 </div>';
 
-    const JUMPER_ITEM_HTML = '<span class="unread-comment-jump"><a href="#{0}">#{1}</a></span>';
+    const JUMPER_ITEM_HTML = '<span class="unread-comments-jump"><a href="#{0}">#{1}</a></span>';
 
     // ############################################################
     // ## Helper Functions
@@ -406,17 +419,29 @@
                 $commentsToHighlight.length,
                 $allComments.length), 'success');
         }
+
+        insertJumperLinks();
     }
 
     function insertJumperLinks() {
         var $highlighted = $('.comment.unread');
         if ($highlighted.length > 0 && $highlighted.length < 10) {
+            var $jumper = $('.unread-comments-jumper');
+
             // WARNING - ARGUMENT ORDER IS FLIPPED FROM Array.map()
             var jumpLinks = $highlighted.map(function(index, domComment) {
-                return jQuery.parseHTML(JUMPER_ITEM_HTML.format(domComment.id, index));
+                return jQuery.parseHTML(JUMPER_ITEM_HTML.format(domComment.id, index + 1));
             });
 
-            $('.unread-comments-jumper').append($(jumpLinks));
+            $jumper.removeClass('hidden');
+            $jumper.append($(jumpLinks));
+
+            // bring you slightly below the top of the comment
+            $('.unread-comments-jump a').click(function(e) {
+                var target = $(this.hash);
+                $(window).scrollTop(target.offset().top - 70);
+                return false;
+            });
         }
     }
 
@@ -599,7 +624,6 @@
             getComicReadData(function(readData) {
                 addControls(readData); // sync
                 doHighlight(readData); // sync
-                insertJumperLinks(); // sync
                 saveFirstVisit(readData); // asynchronous
 
                 console.info("Grrl Power Comment Highlight script complete.");
