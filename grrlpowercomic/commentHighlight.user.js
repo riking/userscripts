@@ -33,6 +33,9 @@
     var addJquery = function(callback) {
         if (window.jQuery) {
             // jQuery is already loaded, yay
+            $ = window.$ = window.jQuery;
+            $('head style[data-x_userscript_comment_hlght="1"]:not(:last)').remove();
+            $('#comment-wrapper .unread-comments-controls').remove();
             return callback();
         }
 
