@@ -41,7 +41,6 @@
         jq.src = "//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js";
         jq.dataset.x_userscript_comment_hlght = "1";
         jq.onload = function() {
-            // console.log("jquery script element loaded");
             $ = window.$ = window.jQuery;
 
             // Remove prior script elements (for reloading in development)
@@ -50,7 +49,6 @@
             $('#comment-wrapper .unread-comments-controls').remove();
 
             callback();
-            //window.jQuery(document).ready(callback);
         };
         document.getElementsByTagName('head')[0].appendChild(jq);
     };
@@ -186,14 +184,6 @@
      */
     function getStorage() {
         if (_storage) return _storage;
-
-        if (typeof Storage === "undefined") {
-            alert("Browser does not have localStorage, so the unread comments script cannot work.\n" +
-                "\n\n" +
-                "** Remove the script to get rid of this message. **\n\n" +
-                "(Or grant localStorage access if it is being denied.)");
-            throw new Error("localstorage failure");
-        }
 
         var storage;
         if (chrome && chrome.storage) {
@@ -469,7 +459,7 @@
             $jumper.append($(jumpLinks));
 
             // bring you slightly below the top of the comment
-            $('.unread-comments-jump a').click(function(e) {
+            $('.unread-comments-jump a').click(function() {
                 var target = $(this.hash);
                 $(window).scrollTop(target.offset().top - 70);
                 return false;
