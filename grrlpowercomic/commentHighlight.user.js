@@ -9,13 +9,19 @@
 // ==/UserScript==
 
 (function() {
-    function addJquery(callback) {
+
+    // ############################################################
+    // ## Library Functions
+
+    var isExtension = false; // !!chrome.extension;
+
+    var addJquery = function(callback) {
         // Add jQuery
         var jq = document.createElement('script');
         jq.src = "//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js";
         jq.dataset.x_userscript_comment_hlght = "1";
         jq.onload = function() {
-            console.log("jquery script element loaded");
+            // console.log("jquery script element loaded");
             $ = window.$ = window.jQuery;
 
             // Remove prior script elements (for reloading in development)
@@ -27,7 +33,7 @@
             //window.jQuery(document).ready(callback);
         };
         document.getElementsByTagName('head')[0].appendChild(jq);
-    }
+    };
 
     // Multiline Function String - Nate Ferrero - Public Domain
     function heredoc(f) {
@@ -47,6 +53,22 @@
     }
 
     // ############################################################
+    // ## Constants, CSS, HTML
+
+    const DATA_VERSION = 2;
+
+    const SERVER_TIMEZONE = "-0500";
+
+    /**
+     * Regex to parse the WordPress URLs on the site into an articleNumber ID and comment page.
+     *
+     * Group 1 - document type
+     * Group 2 - document number
+     * Group 3 - comment page (can be blank, blank = last page)
+     *
+     * @type {RegExp}
+     */
+    var URL_MATCHER = /grrlpowercomic\.com\/([^\/]+)\/(\d+)(?:\/comment-page(\d+))?/;
 
     var STYLE = heredoc(function() { /*
      .comment.unread > .comment-content {
@@ -74,7 +96,6 @@
      }
 
      .unread-comments-clear {
-     float: right;
      }
 
      .unread-comments-set-container {
@@ -102,38 +123,34 @@
 
     var CONTROLS_HTML = heredoc(function() {/*
      <div class="unread-comments-controls">
-         <div class="unread-comments-status unread-comments-msg">&zwnj;</div>
-         <button class="unread-comments-mark unread-comments-btn">Mark Comments Read</button>
-         <button class="unread-comments-clear unread-comments-btn">Delete Read Data</button>
-         <span class="unread-comments-set-container">
-            Edit Read Data: [<a href class="unread-comments-set" data-target="comic">Comic</a>] [<a href class="unread-comments-set" data-target="page">Page</a>]
-         </span>
-         <div class="unread-comments-response unread-comments-msg">&zwnj;</span>
+     <div class="unread-comments-status unread-comments-msg">&zwnj;</div>
+     <button class="unread-comments-mark unread-comments-btn">Mark Comments Read</button>
+     <button class="unread-comments-clear unread-comments-btn">Reset All Pages</button>
+     <span class="unread-comments-set-container">
+     Edit Read Data: [<a href class="unread-comments-set" data-target="comic">Comic</a>] [<a href class="unread-comments-set" data-target="page">Page</a>]
+     </span>
+     <div class="unread-comments-response unread-comments-msg">&zwnj;</span>
      </div>
      */
     });
 
-    /**
-     * Regex to parse the WordPress URLs on the site into an articleNumber ID and comment page.
-     *
-     * Group 1 - document type
-     * Group 2 - document number
-     * Group 3 - comment page (can be blank, blank = last page)
-     *
-     * @type {RegExp}
-     */
-    var URL_MATCHER = /grrlpowercomic\.com\/([^\/]+)\/(\d+)(?:\/comment-page(\d+))?/;
-
     // ############################################################
+    // ## Helper Functions
 
     var _storage;
 
     /**
-     * Get the localStorage object, with error-checking on first call.
+     * Get the interface to the data storage.
+     *
+     * If the script is installed as a Chrome extension, then Chrome's synced
+     * data storage will be used.
+     *
+     * If the script is installed as a userscript, then the localStorage
+     * interface will be used.
      *
      * @returns {Storage}
      */
-    function getLocalStorage() {
+    function getStorage() {
         if (_storage) return _storage;
 
         if (typeof Storage === "undefined") {
@@ -144,19 +161,66 @@
             throw new Error("localstorage failure");
         }
 
-        // define setObject/getObject
-        Storage.prototype.setObject = function(key, value) {
-            this.setItem(key, JSON.stringify(value));
-        };
-
-        Storage.prototype.getObject = function(key) {
-            return JSON.parse(this.getItem(key));
-        };
-
         var storage;
-        try {
-            storage = window.localStorage;
-        } catch (e) {
+        if (chrome && chrome.storage) {
+            storage = chrome.storage.sync;
+
+            // Put in our internal API
+            storage.setObject = function(key, value, callback) {
+                var req = {}; req[key] = JSON.stringify(value);
+                this.set(req, function() {
+                    if (chrome.runtime.lastError) {
+                        console.error(chrome.runtime.lastError);
+                    }
+                    if (callback) callback();
+                });
+            };
+
+            storage.getObject = function(key, callback) {
+                this.get(key, function(items) {
+                    if (chrome.runtime.lastError) {
+                        console.error(chrome.runtime.lastError);
+                        return callback(null);
+                    }
+                    if (items[key]) {
+                        callback(JSON.parse(items[key]));
+                    } else {
+                        callback(null);
+                    }
+                });
+            };
+
+            storage.removeObject = function(key, callback) {
+                this.remove(key, function() {
+                    if (chrome.runtime.lastError) {
+                        console.error(chrome.runtime.lastError);
+                    }
+                    if (callback) callback();
+                });
+            }
+        } else {
+            // Put our internal API in the Storage prototype
+            // localStorage is a synchronous API, but chrome.storage is synchronous
+            // so we have to add an asynchronous wrapper
+            Storage.prototype.setObject = function(key, value, callback) {
+                this.setItem(key, JSON.stringify(value));
+                setTimeout(callback(), 0);
+            };
+
+            Storage.prototype.getObject = function(key, callback) {
+                var value = JSON.parse(this.getItem(key));
+                setTimeout(function() { callback(value); }, 0);
+            };
+
+            Storage.prototype.removeObject = function(key, callback) {
+                this.removeItem(key);
+                setTimeout(callback(), 0);
+            };
+
+            try {
+                storage = window.localStorage;
+            } catch (e) {
+            }
         }
 
         if (!storage) {
@@ -171,7 +235,7 @@
         return _storage = storage;
     }
 
-    function getPageNumber() {
+    function getComicNumbers() {
         var matches = URL_MATCHER.exec(window.location);
         return {
             recognized: !!matches,
@@ -181,11 +245,17 @@
         };
     }
 
-    function getComicDataKey() {
-        return "unread-comments-" + getPageNumber().articleNumber;
+    function getPageNumber() {
+        return getComicNumbers().page;
     }
 
-    const DATA_VERSION = 1;
+    function getPageCount() {
+        return Number($('.wp-paginate-comments .page').last().text());
+    }
+
+    function getComicDataKey() {
+        return "unread-comments-" + getComicNumbers().articleNumber;
+    }
 
     /**
      * Get the last-read data from the storage.
@@ -194,35 +264,54 @@
      *
      * @returns {Object} last-read data for this page
      */
-    function getComicReadData() {
-        var readData = getLocalStorage().getObject(getComicDataKey());
-        if (!readData) {
-            readData = {
-                VERSION: DATA_VERSION,
-                lastReadComic: -1,
-                lastReadPerPage: []
-            };
-        }
-
-        // DATA MIGRATIONS START
-        if (readData.VERSION !== DATA_VERSION) {
-            if (readData.VERSION === 0) {
-                // noop - not a real version
-                readData.VERSION = 1;
+    function getComicReadData(callback) {
+        getStorage().getObject(getComicDataKey(), function(readData) {
+            if (!readData) {
+                readData = {
+                    _V: DATA_VERSION,
+                    lastReadComic: null,
+                    /**
+                     * 1-indexed array of last-read times for the comic.
+                     * Indexed by comment page number.
+                     */
+                    lastReadPerPage: new Array(getPageCount())
+                };
+                readData.lastReadPerPage.fill(-1);
             }
 
-            if (readData.VERSION !== DATA_VERSION) {
-                throw new Error("bad data migrations - failed to update version on every possible path");
-            }
-            saveComicReadData(readData);
-        }
-        // DATA MIGRATIONS END
+            // DATA MIGRATIONS START
+            if (readData._V !== DATA_VERSION) {
+                // Renamed VERSION to _V, changed from -1 to undefined/null
+                if (readData.VERSION === 1) {
+                    delete readData.VERSION;
+                    readData._V = 2;
+                }
 
-        return readData;
+                if (readData._V !== DATA_VERSION) {
+                    throw new Error("bad data migrations - failed to update version on every possible path");
+                }
+                return saveComicReadData(readData, function() {
+                    callback(readData);
+                });
+            }
+            // DATA MIGRATIONS END
+
+            callback(readData);
+        });
     }
 
-    function saveComicReadData(readData) {
-        getLocalStorage().setObject(getComicDataKey(), readData);
+    /**
+     *
+     * @param readData readData to save
+     * @param [completionCallback] function to call on completion
+     */
+    function saveComicReadData(readData, completionCallback) {
+        getStorage().setObject(getComicDataKey(), readData, function() {
+            console.info("Comment highlighting data saved.");
+            if (completionCallback) {
+                completionCallback();
+            }
+        });
     }
 
     /**
@@ -237,7 +326,7 @@
      */
     function fillPageReadData(readData, pageNumber, fillDate) {
         if (!pageNumber) {
-            pageNumber = getPageNumber().page;
+            pageNumber = getPageNumber();
         }
         if (!fillDate) {
             fillDate = -1;
@@ -251,7 +340,7 @@
 
     function getPageReadData(readData) {
         fillPageReadData(readData);
-        return readData.lastReadPerPage[getPageNumber() - 1];
+        return readData.lastReadPerPage[getPageNumber()];
     }
 
     function highlightResultMessage(message, classes) {
@@ -266,8 +355,6 @@
         $elem.text(message);
     }
 
-    // ############################################################
-
     /**
      * Takes a jQuery selector for a li.comment inside the ol.commentList, and
      * returns the unix time that the comment was posted at.
@@ -276,8 +363,8 @@
      * @returns {number} unix time of comment posting
      */
     function getCommentDate(domComment) {
-        var dateText = $(domComment).find(".comment-time").text();
-        return Date.parse(dateText.replace('at', ''));
+        var dateText = $(domComment).find(">.comment-content .comment-time").first().text();
+        return Date.parse(dateText.replace('at', '') + " " + SERVER_TIMEZONE);
     }
 
     /**
@@ -289,7 +376,7 @@
      */
     function getAllComments() {
         if (_$comments) return _$comments;
-        return _$comments = $('#comment-wrapper .commentlist .comment');
+        return _$comments = $('.comment');
     }
 
     var _$comments;
@@ -308,10 +395,9 @@
         $controls.find('.unread-comments-set').click(clickPickDate);
     }
 
-    function doHighlight() {
-        var readData = getComicReadData();
+    function doHighlight(readData) {
         if (readData.lastReadComic === -1) {
-            return highlightResultMessage("(No unread comment data.)", 'info');
+            return highlightResultMessage("(This is your first visit to the page, so no comments were highlighted.)", 'info');
         }
 
         var highlightingTimestamp = getPageReadData(readData);
@@ -334,99 +420,170 @@
         }
     }
 
-    function saveFirstVisit() {
-        var data = getComicReadData();
-        if (data.lastReadComic === -1) {
+    /**
+     * @param readData
+     * @param [callback]
+     */
+    function saveFirstVisit(readData, callback) {
+        if (readData.lastReadComic === -1) {
             var timestamp = Date.now();
-            data.lastReadComic = timestamp;
-            fillPageReadData(data, getPageNumber(), timestamp);
+            readData.lastReadComic = timestamp;
+            fillPageReadData(readData, getPageNumber(), timestamp);
 
-            saveComicReadData(data);
+            saveComicReadData(readData, callback);
         }
     }
 
     // ############################################################
 
-    function rehighlight() {
+    function rehighlight(readData) {
         getAllComments().removeClass('unread');
-        doHighlight();
+        doHighlight(readData);
     }
 
-    function clickMarkRead() {
-        var data = getComicReadData(),
-            pageNumber = getPageNumber(),
-            now = new Date().getTime();
+    function clickMarkRead(e) {
+        var $button = $(e.target);
 
-        // fill the array
-        fillPageReadData(data, pageNumber);
+        var pageNumber = getPageNumber(),
+            now = Date.now();
 
-        data.lastReadComic = now;
-        data.lastReadPerPage[pageNumber] = now;
+        $button.attr('disabled', 1);
+        getComicReadData(function(readData) {
+            // fill the array
+            fillPageReadData(readData, pageNumber);
 
-        saveComicReadData(data);
-        buttonResultMessage("Last-read date marked! ", 'success');
+            readData.lastReadComic = now;
+            readData.lastReadPerPage[pageNumber] = now;
+
+            saveComicReadData(readData, function() {
+                buttonResultMessage("Last-read date marked for page {0}!".format(pageNumber), 'success');
+                rehighlight(readData);
+                $button.removeAttr('disabled');
+            });
+        });
     }
 
-    function clickDeleteData() {
-        var data = getComicReadData();
-        getLocalStorage().removeItem(getComicDataKey());
+    function clickDeleteData(e) {
+        var $button = $(e.target);
 
-        if (data.lastReadComic === -1) {
-            buttonResultMessage("No data was present to delete on this page.", 'info');
-        } else {
-            buttonResultMessage("Deleted last-read data for comic {1}.".format(getPageNumber().articleNumber), 'info');
-        }
+        $button.attr('disabled', 1);
+        getComicReadData(function(readData) {
+            getStorage().removeObject(getComicDataKey(), function() {
+                getComicReadData(function(readData) {
+                    saveFirstVisit(readData, function() {
+                        if (readData.lastReadComic === -1) {
+                            buttonResultMessage("(No data to reset)", 'info');
+                        } else {
+                            buttonResultMessage("Reset last-read data for all {0} comment pages.".format(getPageCount()), 'info');
+                        }
+                        rehighlight(readData);
+                        $button.removeAttr('disabled');
+                    });
+                });
+            });
+        });
     }
 
     function clickPickDate(e) {
+        var $button = $(e.target);
         e.preventDefault();
 
-        var data = getComicReadData();
         var input, dateInput;
 
-        if (e.target.dataset.target === "comic") {
-            input = prompt("Edit the last-read mark date:",
-                new Date(data.lastReadComic).toString());
+        function formatDate(input) {
+            var date;
+            if (typeof input === "number") {
+                date = new Date(input);
+            } else {
+                date = input;
+            }
+            if (date.getTime() === -1) { date = new Date(); }
+
+            return date.toDateString() + " " + date.toLocaleTimeString();
+        }
+
+        $button.attr('disabled', 1);
+        getComicReadData(function(readData) {
+            console.log(readData);
+            var currentData = "" +
+                    "Current mark dates:\n" +
+                    "\n" +
+                    "  Comic {0}: {1}\n" +
+                    "{2}\n",
+                perPageData = "";
+
+            readData.lastReadPerPage.forEach(function(timestamp, index) {
+                if (index === 0) return;
+                if (timestamp === -1) {
+                    perPageData += "  Page {0}: No data\n".format(index);
+                } else {
+                    perPageData += "  Page {0}: {1}\n".format(index, formatDate(timestamp));
+                }
+            });
+
+            currentData = currentData.format(
+                getComicNumbers().articleNumber,
+                formatDate(readData.lastReadComic),
+                perPageData
+            );
+
+            var inputPrompt, inputCurrent, editFunc;
+
+            if (e.target.dataset.target === "comic") {
+                inputPrompt = "" +
+                    currentData +
+                    "Edit the new last-read time for the comic & current page:";
+                inputCurrent = readData.lastReadComic;
+                editFunc = function(readData, dateInput) {
+                    // let's be nice to the user and set it for both the comic and the page
+                    // seeing as the comic time only applies to pages that you HAVEN'T marked as read on
+                    readData.lastReadComic = dateInput.getTime();
+                    readData.lastReadPerPage[getPageNumber()] = dateInput.getTime();
+                };
+            } else if (e.target.dataset.target === "page") {
+                inputPrompt = "" +
+                    currentData +
+                    "Edit the new last-read date for page {0}:".format(getPageNumber());
+                inputCurrent = getPageReadData(readData);
+                editFunc = function(readData, dateObject) {
+                    readData.lastReadPerPage[getPageNumber()] = dateInput.getTime();
+                }
+            } else {
+                console.error("Bad click event target! Expected a data-target value of 'comic' or 'page'", e);
+                return;
+            }
+
+            input = prompt(inputPrompt, formatDate(inputCurrent));
 
             if (input === null) {
                 buttonResultMessage("Edit cancelled.", 'info');
+                $button.removeAttr('disabled');
                 return;
             }
 
             dateInput = new Date(input);
 
-            if (isNaN(dateInput.getDate())) {
+            if (isNaN(dateInput.getTime())) {
                 buttonResultMessage("Edit failed: Bad date format.", 'error');
+                $button.removeAttr('disabled');
             } else {
-                data.lastReadComic = dateInput.getDate();
-                saveComicReadData(data);
-                buttonResultMessage("Edit successful.", 'success');
-                rehighlight();
-            }
-        } else if (e.target.dataset.target === "page") {
-            input = prompt("Edit the last-read mark date for page {0}:".format(getPageNumber()),
-                new Date(getPageReadData(data)).toString());
+                editFunc(readData, dateInput);
 
-            dateInput = new Date(input);
-
-            if (isNaN(dateInput.getDate())) {
-                buttonResultMessage("Edit failed: Bad date format.", 'error');
-            } else {
-                data.lastReadPerPage[getPageNumber()] = dateInput.getDate();
-                saveComicReadData(data);
-                buttonResultMessage("Edit successful.", 'success');
-                rehighlight();
+                rehighlight(readData);
+                saveComicReadData(readData, function() {
+                    buttonResultMessage("Edit successful; comments have been re-highlighted.", 'success');
+                    $button.removeAttr('disabled');
+                });
             }
-        } else {
-            buttonResultMessage("Edit failed: bad event target?? (this is a bug)", 'error');
-            throw new Error("bad event target");
-        }
+        });
     }
 
     // ############################################################
 
     function onReady() {
-        console.log('onready');
+        console.log(window.location);
+        console.log(document.location);
+        console.log(window.localStorage);
 
         // add styles
         var css = document.createElement('style');
@@ -435,13 +592,15 @@
         document.getElementsByTagName('head')[0].appendChild(css);
 
         addJquery(function() {
-            addControls();
-            doHighlight();
-            saveFirstVisit();
-            console.info("Grrl Power Comment Highlight script complete.");
+            getComicReadData(function(readData) {
+                addControls(readData); // sync
+                doHighlight(readData); // sync
+                saveFirstVisit(readData); // asynchronous
+                console.info("Grrl Power Comment Highlight script complete.");
+                console.log(readData);
+            });
         });
     }
 
-    //document.addEventListener('DOMContentLoaded', onReady);
     onReady();
 })();
