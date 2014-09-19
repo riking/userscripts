@@ -5,7 +5,7 @@
 // @match http://grrlpowercomic.com/archives/*
 // @match http://grrlpowercomic.com/archives/*/comment-page-*
 // @require https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
-// @version 0.4.1-dev
+// @version 0.4.4
 // ==/UserScript==
 
 (function() {
@@ -89,7 +89,7 @@
 
     const STYLE = "\
 .wp-paginate.wp-paginate-comments li > *:not(.title) { \
-    padding: 20px; \
+    /* padding: 20px; */ \
 }\
 \
 .wp-paginate.wp-paginate-comments a.next, .wp-paginate.wp-paginate-comments a.prev { \
@@ -97,7 +97,7 @@
 }\
 \
 .commentnav { \
-    padding: 20px 0; \
+    /* padding: 20px 0; */ \
 }\
 \
 .commentsrsslink { \
