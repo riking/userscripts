@@ -9,6 +9,7 @@
 // ==/UserScript==
 
 (function() {
+    "use strict";
 
     // ############################################################
     // ## Capabilities
@@ -78,9 +79,9 @@
     // ############################################################
     // ## Constants, CSS, HTML
 
-    const DATA_VERSION = 3;
+    var DATA_VERSION = 3;
 
-    const SERVER_TIMEZONE = "-0500";
+    var SERVER_TIMEZONE = "-0500";
 
     /**
      * Regex to parse the WordPress URLs on the site into an articleNumber ID and comment page.
@@ -91,9 +92,9 @@
      *
      * @type {RegExp}
      */
-    const URL_MATCHER = /grrlpowercomic\.com\/([^\/]+)\/(\d+)(?:\/comment-page(\d+))?/;
+    var URL_MATCHER = /grrlpowercomic\.com\/([^\/]+)\/(\d+)(?:\/comment-page(\d+))?/;
 
-    const STYLE = "\
+    var STYLE = "\
 .wp-paginate.wp-paginate-comments li > *:not(.title) { \
     /* padding: 20px; */ \
 }\
@@ -155,7 +156,7 @@
 }\
 ";
 
-    const CONTROLS_HTML = ' \
+    var CONTROLS_HTML = ' \
 <div class="unread-comments-controls"> \
     <div class="unread-comments-status unread-comments-msg">&zwnj;</div> \
     <div class="unread-comments-jumper hidden"><span class="unread-comments-jumper-instructions">Jump to unread: </span></div> \
@@ -167,7 +168,7 @@
     <div class="unread-comments-response unread-comments-msg">&zwnj;</span> \
 </div>';
 
-    const JUMPER_ITEM_HTML = '<span class="unread-comments-jump"><a href="#{0}">#{1}</a></span>';
+    var JUMPER_ITEM_HTML = '<span class="unread-comments-jump"><a href="#{0}">#{1}</a></span>';
 
     // ############################################################
     // ## Helper Functions
