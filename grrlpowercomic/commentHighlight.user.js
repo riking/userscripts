@@ -11,6 +11,21 @@
 (function() {
 
     // ############################################################
+    // ## Capabilities
+
+    if (typeof Storage === "undefined") {
+        console.error("localStorage not supported. Comment highlighting disabled.");
+        return;
+    }
+
+    try {
+        var a = window.localStorage;
+    } catch (ex) {
+        console.error("localStorage access denied. Comment highlighting disabled.", ex);
+        return;
+    }
+
+    // ############################################################
     // ## Library Functions
 
     var isExtension = false; // !!chrome.extension;
