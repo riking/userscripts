@@ -14,14 +14,14 @@
     // ## Capabilities
 
     if (typeof Storage === "undefined") {
-        console.error("localStorage not supported. Comment highlighting disabled.");
+        console.warn("localStorage not supported. Comment highlighting disabled.");
         return;
     }
 
     try {
         var a = window.localStorage;
     } catch (ex) {
-        console.error("localStorage access denied. Comment highlighting disabled.", ex);
+        console.warn("localStorage access denied. Comment highlighting disabled.", ex);
         return;
     }
 
