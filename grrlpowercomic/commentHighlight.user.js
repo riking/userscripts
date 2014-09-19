@@ -5,10 +5,11 @@
 // @match http://grrlpowercomic.com/archives/*
 // @match http://grrlpowercomic.com/archives/*/comment-page-*
 // @require https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
-// @version 0.4.5
+// @version 0.4.6
 // ==/UserScript==
 
 /* jshint multistr: true */
+/* global $ */
 
 (function() {
     "use strict";
@@ -515,13 +516,17 @@
     function clickMarkRead(e) {
         var $button = $(e.target);
 
-        var pageNumber = getPageNumber(),
-            now = Date.now();
+        var pageNumber = getPageNumber();
+        var lastCommentDate = Math.max.apply(Math, $.makeArray(
+            getAllComments().map(function(idx, domComment) {
+                return getCommentDate(domComment);
+            })
+        )) + 1;
 
         $button.attr('disabled', 1);
         getComicReadData(function(readData) {
-            readData.lastReadComic = now;
-            readData.lastReadPerPage[pageNumber] = now;
+            readData.lastReadComic = lastCommentDate;
+            readData.lastReadPerPage[pageNumber] = lastCommentDate;
 
             saveComicReadData(readData, function() {
                 buttonResultMessage("Last-read date marked for page {0}!".format(pageNumber), 'success');
