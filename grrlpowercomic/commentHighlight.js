@@ -1,11 +1,27 @@
-(function () {
+// ==UserScript==
+// @name Grrl Power New Comment Highlighter
+// @namespace http://www.riking.org/userscripts
+// @description Highlights new comments on the comic pages.
+// @match http://grrlpowercomic.com/archives/*
+// @match http://grrlpowercomic.com/archives/*/comment-page-*
+// @require https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
+// @version 0.2
+// ==/UserScript==
+
+(function() {
     function addJquery(callback) {
         // Add jQuery
         var jq = document.createElement('script');
-        jq.src = "//ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js";
+        jq.src = "//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js";
+        jq.dataset.x_userscript_comment_hlght = "1";
         jq.onload = function() {
             console.log("jquery script element loaded");
             $ = window.$ = window.jQuery;
+
+            // Remove prior script elements (for reloading in development)
+            $('head script[data-x_userscript_comment_hlght="1"]:not(:last)').remove();
+            $('head style[data-x_userscript_comment_hlght="1"]:not(:last)').remove();
+            $('#comment-wrapper .unread-comments-controls').remove();
 
             callback();
             //window.jQuery(document).ready(callback);
@@ -18,15 +34,30 @@
         return f.toString().match(/\/\*\s*([\s\S]*?)\s*\*\//m)[1];
     }
 
+    if (!String.prototype.format) {
+        String.prototype.format = function() {
+            var args = arguments;
+            return this.replace(/{(\d+)}/g, function(match, number) {
+                return typeof args[number] != 'undefined'
+                    ? args[number]
+                    : match
+                    ;
+            });
+        };
+    }
+
     // ############################################################
 
-    var STYLE = heredoc(function () { /*
+    var STYLE = heredoc(function() { /*
      .comment.unread > .comment-content {
-     background-color: rgba(253, 185, 26, 0.3);
+     background-color: rgb(242, 225, 186);
+     }
+
+     .wp-paginate.wp-paginate-comments li > *:not(.title) {
+     padding: 20px;
      }
 
      .wp-paginate.wp-paginate-comments a.next, .wp-paginate.wp-paginate-comments a.prev {
-     padding: 20px;
      background: rgb(220, 240, 215);
      }
 
@@ -34,21 +65,50 @@
      padding: 20px 0;
      }
 
-     #comment-clear-message {
-     color: green;
-     font-weight: bold;
+     .commentsrsslink {
+     float: left;
+     }
+
+     .unread-comments-controls {
+     margin: 6px 0;
+     }
+
+     .unread-comments-clear {
+     float: right;
+     }
+
+     .unread-comments-set-container {
      margin-left: 6px;
+     }
+
+     .unread-comments-msg.info {
+     color: rgb(115, 115, 221);
+     }
+     .unread-comments-msg.success {
+     color: rgb(35, 137, 44)
+     }
+     .unread-comments-msg.error {
+     color: rgb(207, 53, 53);
+     }
+
+     .unread-comments-status.success {
+     color: rgb(237, 159, 17);
+     font-size: 16px;
+     font-weight: bold;
+     margin-bottom: 3px;
      }
      */
     });
 
     var CONTROLS_HTML = heredoc(function() {/*
      <div class="unread-comments-controls">
-       <div class="unread-comments-status"></div>
-       <button class="unread-comments-mark unread-comments-btn">Mark Read</button>
-       <button class="unread-comments-clear unread-comments-btn">Remove Data</button>
-       <a href class="unread-comments-set">Manually Set</a>
-       <span class="unread-comments-response"></span>
+         <div class="unread-comments-status unread-comments-msg">&zwnj;</div>
+         <button class="unread-comments-mark unread-comments-btn">Mark Comments Read</button>
+         <button class="unread-comments-clear unread-comments-btn">Delete Read Data</button>
+         <span class="unread-comments-set-container">
+            Edit Read Data: [<a href class="unread-comments-set" data-target="comic">Comic</a>] [<a href class="unread-comments-set" data-target="page">Page</a>]
+         </span>
+         <div class="unread-comments-response unread-comments-msg">&zwnj;</span>
      </div>
      */
     });
@@ -117,80 +177,129 @@
             recognized: !!matches,
             articleType: matches && matches[1],
             articleNumber: matches && matches[2],
-            page: (matches && matches[3]) || (Number($(".page.current").first().text()))
+            page: Number((matches && matches[3]) || ($(".page.current").first().text()))
         };
     }
 
-    function getDataKey() {
+    function getComicDataKey() {
         return "unread-comments-" + getPageNumber().articleNumber;
     }
 
-    function getPageData() {
-        localStorage.getObject(getDataKey())
+    const DATA_VERSION = 1;
+
+    /**
+     * Get the last-read data from the storage.
+     *
+     * If no data is stored, the lastReadComic property will be -1.
+     *
+     * @returns {Object} last-read data for this page
+     */
+    function getComicReadData() {
+        var readData = getLocalStorage().getObject(getComicDataKey());
+        if (!readData) {
+            readData = {
+                VERSION: DATA_VERSION,
+                lastReadComic: -1,
+                lastReadPerPage: []
+            };
+        }
+
+        // DATA MIGRATIONS START
+        if (readData.VERSION !== DATA_VERSION) {
+            if (readData.VERSION === 0) {
+                // noop - not a real version
+                readData.VERSION = 1;
+            }
+
+            if (readData.VERSION !== DATA_VERSION) {
+                throw new Error("bad data migrations - failed to update version on every possible path");
+            }
+            saveComicReadData(readData);
+        }
+        // DATA MIGRATIONS END
+
+        return readData;
+    }
+
+    function saveComicReadData(readData) {
+        getLocalStorage().setObject(getComicDataKey(), readData);
+    }
+
+    /**
+     * Get the per-page read data from the result of
+     * {@link getComicReadData()}, filling in the array with -1 values if
+     * values are missing.
+     *
+     * @param readData {Object} result of {@link getComicReadData()}
+     * @param [pageNumber] {Number} comment page # to get the data for
+     * @param [fillDate] date to insert for missing values
+     * @return {Number} last-read unix millis (-1 for missing data)
+     */
+    function fillPageReadData(readData, pageNumber, fillDate) {
+        if (!pageNumber) {
+            pageNumber = getPageNumber().page;
+        }
+        if (!fillDate) {
+            fillDate = -1;
+        }
+
+        var dataArray = readData.lastReadPerPage;
+        while (dataArray.length <= pageNumber) {
+            dataArray.push(fillDate);
+        }
+    }
+
+    function getPageReadData(readData) {
+        fillPageReadData(readData);
+        return readData.lastReadPerPage[getPageNumber() - 1];
+    }
+
+    function highlightResultMessage(message, classes) {
+        var $elem = $('.unread-comments-controls .unread-comments-status');
+        $elem.removeClass('success info error').addClass(classes);
+        $elem.text(message);
     }
 
     function buttonResultMessage(message, classes) {
-        var $elem = $('.unread-comments-controls .unread-comments-status');
-        $elem.css('class', 'unread-comments-status ' + classes);
+        var $elem = $('.unread-comments-controls .unread-comments-response');
+        $elem.removeClass('success info error').addClass(classes);
         $elem.text(message);
     }
+
+    // ############################################################
 
     /**
      * Takes a jQuery selector for a li.comment inside the ol.commentList, and
      * returns the unix time that the comment was posted at.
      *
-     * @param $comment jQuery-wrapped li element
+     * @param domComment element with .comment class
      * @returns {number} unix time of comment posting
      */
-    function getCommentDate($comment) {
-        //noinspection JSPotentiallyInvalidConstructorUsage
-        return Date.parse(Date($comment.find(".comment-time").attr('title')));
+    function getCommentDate(domComment) {
+        var dateText = $(domComment).find(".comment-time").text();
+        return Date.parse(dateText.replace('at', ''));
     }
 
     /**
      * Get the jQuery group for all comment elements on the page.
-     * Memoized.
+     *
+     * This function is memoized.
      *
      * @returns {Array} all comments on the page
      */
     function getAllComments() {
         if (_$comments) return _$comments;
-
-        var $commentList = $('#comment-wrapper ol.commentlist'),
-            $comments = $commentList.find('.comment');
-
-        return _$comments = $comments;
+        return _$comments = $('#comment-wrapper .commentlist .comment');
     }
 
     var _$comments;
 
 
-    function doHighlight() {
-
-    }
-
-    // ############################################################
-
-    function clickMarkRead() {
-        console.log('markread click');
-        buttonResultMessage("Hello");
-    }
-
-    function clickDeleteData() {
-        console.log('delete click');
-    }
-
-    function clickPickDate(e) {
-        e.preventDefault();
-
-
-    }
-
     // ############################################################
 
     function addControls() {
+        // Add the controls into the document (in 2 locations!)
         var controls = jQuery.parseHTML(CONTROLS_HTML);
-        // note - this will be 2 elements
         $('#comment-wrapper .commentnav').after(controls);
         var $controls = $('#comment-wrapper .unread-comments-controls');
 
@@ -199,18 +308,137 @@
         $controls.find('.unread-comments-set').click(clickPickDate);
     }
 
+    function doHighlight() {
+        var readData = getComicReadData();
+        if (readData.lastReadComic === -1) {
+            return highlightResultMessage("(No unread comment data.)", 'info');
+        }
+
+        var highlightingTimestamp = getPageReadData(readData);
+        if (highlightingTimestamp === -1) {
+            highlightingTimestamp = readData.lastReadComic;
+        }
+
+        var $allComments = getAllComments();
+        var $commentsToHighlight = $allComments.filter(function() {
+            return getCommentDate(this) >= highlightingTimestamp;
+        });
+
+        $commentsToHighlight.addClass('unread');
+        if ($commentsToHighlight.length === 0) {
+            highlightResultMessage("No unread comments.", 'info');
+        } else {
+            highlightResultMessage("{0} unread comments on this page (out of {1}).".format(
+                $commentsToHighlight.length,
+                $allComments.length), 'success');
+        }
+    }
+
+    function saveFirstVisit() {
+        var data = getComicReadData();
+        if (data.lastReadComic === -1) {
+            var timestamp = Date.now();
+            data.lastReadComic = timestamp;
+            fillPageReadData(data, getPageNumber(), timestamp);
+
+            saveComicReadData(data);
+        }
+    }
+
+    // ############################################################
+
+    function rehighlight() {
+        getAllComments().removeClass('unread');
+        doHighlight();
+    }
+
+    function clickMarkRead() {
+        var data = getComicReadData(),
+            pageNumber = getPageNumber(),
+            now = new Date().getTime();
+
+        // fill the array
+        fillPageReadData(data, pageNumber);
+
+        data.lastReadComic = now;
+        data.lastReadPerPage[pageNumber] = now;
+
+        saveComicReadData(data);
+        buttonResultMessage("Last-read date marked! ", 'success');
+    }
+
+    function clickDeleteData() {
+        var data = getComicReadData();
+        getLocalStorage().removeItem(getComicDataKey());
+
+        if (data.lastReadComic === -1) {
+            buttonResultMessage("No data was present to delete on this page.", 'info');
+        } else {
+            buttonResultMessage("Deleted last-read data for comic {1}.".format(getPageNumber().articleNumber), 'info');
+        }
+    }
+
+    function clickPickDate(e) {
+        e.preventDefault();
+
+        var data = getComicReadData();
+        var input, dateInput;
+
+        if (e.target.dataset.target === "comic") {
+            input = prompt("Edit the last-read mark date:",
+                new Date(data.lastReadComic).toString());
+
+            if (input === null) {
+                buttonResultMessage("Edit cancelled.", 'info');
+                return;
+            }
+
+            dateInput = new Date(input);
+
+            if (isNaN(dateInput.getDate())) {
+                buttonResultMessage("Edit failed: Bad date format.", 'error');
+            } else {
+                data.lastReadComic = dateInput.getDate();
+                saveComicReadData(data);
+                buttonResultMessage("Edit successful.", 'success');
+                rehighlight();
+            }
+        } else if (e.target.dataset.target === "page") {
+            input = prompt("Edit the last-read mark date for page {0}:".format(getPageNumber()),
+                new Date(getPageReadData(data)).toString());
+
+            dateInput = new Date(input);
+
+            if (isNaN(dateInput.getDate())) {
+                buttonResultMessage("Edit failed: Bad date format.", 'error');
+            } else {
+                data.lastReadPerPage[getPageNumber()] = dateInput.getDate();
+                saveComicReadData(data);
+                buttonResultMessage("Edit successful.", 'success');
+                rehighlight();
+            }
+        } else {
+            buttonResultMessage("Edit failed: bad event target?? (this is a bug)", 'error');
+            throw new Error("bad event target");
+        }
+    }
+
+    // ############################################################
+
     function onReady() {
         console.log('onready');
 
         // add styles
         var css = document.createElement('style');
         css.innerHTML = STYLE;
+        css.dataset.x_userscript_comment_hlght = "1";
         document.getElementsByTagName('head')[0].appendChild(css);
 
         addJquery(function() {
-            console.log('jqLoaded');
             addControls();
             doHighlight();
+            saveFirstVisit();
+            console.info("Grrl Power Comment Highlight script complete.");
         });
     }
 
