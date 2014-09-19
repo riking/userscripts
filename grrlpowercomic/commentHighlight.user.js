@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Grrl Power New Comment Highlighter
 // @namespace http://www.riking.org/userscripts
-// @description Highlights new comments on the comic pages.
+// @description Highlights new comments on the comic pages since your last visit.
 // @match http://grrlpowercomic.com/archives/*
 // @match http://grrlpowercomic.com/archives/*/comment-page-*
 // @require https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
@@ -53,7 +53,8 @@
     }
 
     function filledArray(length, value) {
-        return new Array(length).map(function() {
+        //noinspection JSPotentiallyInvalidConstructorUsage
+        return Array.apply(null, Array(length)).map(function() {
             return value;
         });
     }
@@ -405,7 +406,7 @@
 
         $commentsToHighlight.addClass('unread');
         if ($commentsToHighlight.length === 0) {
-            highlightResultMessage("No unread comments.", 'info');
+            highlightResultMessage("No unread comments on this page.", 'info');
         } else {
             highlightResultMessage("{0} unread comments on this page (out of {1}).".format(
                 $commentsToHighlight.length,
