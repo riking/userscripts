@@ -41,7 +41,7 @@
 
     var addJquery = function(callback) {
         var finishFunc = function() {
-            window.$ = window.jQuery;
+            $ = window.$ = window.jQuery;
 
             // Remove prior script elements (for reloading in development)
             $('head script[data-x_userscript_comment_hlght="1"]:not(:last)').remove();
@@ -67,7 +67,7 @@
         String.prototype.format = function() {
             var args = arguments;
             return this.replace(/{(\d+)}/g, function(match, number) {
-                return typeof args[number] !== 'undefined' ? args[number] : match;
+                return typeof args[number] != 'undefined' ? args[number] : match;
             });
         };
     }
