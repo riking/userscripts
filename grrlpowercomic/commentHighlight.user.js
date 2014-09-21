@@ -182,7 +182,7 @@
 
     var JUMPER_ITEM_HTML = '<span class="unread-comments-jump"><a href="#{0}">#{1}</a></span>';
 
-    var LOADING_NOTICE_HTML = '<span class="comments-page-loading hidden"><img src="' + LOADING_SPINNER_DATA + '" />Loading... (<a href="{0}">Give up</a>) </span>';
+    var LOADING_NOTICE_HTML = '<span class="comments-page-loading hidden"><img src="' + LOADING_SPINNER_DATA + '" /> Loading... (<a href="{0}">Give up</a>) </span>';
 
     /* jshint ignore: end */
 
@@ -458,12 +458,10 @@
         $('.page, .prev, .next').off('click');
         // Hidden flag feature gate
         // to enable, do:
-        //  > window.localStorage.setItem('allowDynamic', true);
-        getStorage().getObject('allowDynamic', function(obj) {
-            if (obj) {
-                $('.page, .prev, .next').click(clickPageLink);
-            }
-        });
+        //  > window.localStorage.allowDynamic = true;
+        if (window.localStorage.allowDynamic) {
+            $('.page, .prev, .next').click(clickPageLink);
+        }
     }
 
     function doHighlight(readData) {
@@ -736,6 +734,10 @@
                     addControls(readData);
                     doHighlight(readData);
                     saveFirstVisit(readData);
+
+                    setTimeout(function() {
+                        $(window).scrollTop($('#comments').offset().top - 70);
+                    }, 0);
                 });
             },
 
