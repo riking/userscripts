@@ -5,7 +5,7 @@
 // @match http://grrlpowercomic.com/archives/*
 // @match http://grrlpowercomic.com/archives/*/comment-page-*
 // @require https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
-// @version 0.4.7
+// @version 0.4.8
 // ==/UserScript==
 
 /* jshint multistr: true */
@@ -102,7 +102,9 @@
      *
      * @type {RegExp}
      */
-    var URL_MATCHER = /grrlpowercomic\.com\/([^\/]+)\/(\d+)(?:\/comment-page(\d+))?/;
+    var URL_MATCHER = /grrlpowercomic\.com\/([^\/]+)\/(\d+)(?:\/comment-page-(\d+))?/;
+
+    var LOADING_SPINNER_DATA = "data:image/gif;base64,R0lGODlhEAAQAPIAANHT3wAAAJ+hqjY2OQAAAFBRVmprcnh5gCH/C05FVFNDQVBFMi4wAwEAAAAh/hpDcmVhdGVkIHdpdGggYWpheGxvYWQuaW5mbwAh+QQJCgAAACwAAAAAEAAQAAADMwi63P4wyklrE2MIOggZnAdOmGYJRbExwroUmcG2LmDEwnHQLVsYOd2mBzkYDAdKa+dIAAAh+QQJCgAAACwAAAAAEAAQAAADNAi63P5OjCEgG4QMu7DmikRxQlFUYDEZIGBMRVsaqHwctXXf7WEYB4Ag1xjihkMZsiUkKhIAIfkECQoAAAAsAAAAABAAEAAAAzYIujIjK8pByJDMlFYvBoVjHA70GU7xSUJhmKtwHPAKzLO9HMaoKwJZ7Rf8AYPDDzKpZBqfvwQAIfkECQoAAAAsAAAAABAAEAAAAzMIumIlK8oyhpHsnFZfhYumCYUhDAQxRIdhHBGqRoKw0R8DYlJd8z0fMDgsGo/IpHI5TAAAIfkECQoAAAAsAAAAABAAEAAAAzIIunInK0rnZBTwGPNMgQwmdsNgXGJUlIWEuR5oWUIpz8pAEAMe6TwfwyYsGo/IpFKSAAAh+QQJCgAAACwAAAAAEAAQAAADMwi6IMKQORfjdOe82p4wGccc4CEuQradylesojEMBgsUc2G7sDX3lQGBMLAJibufbSlKAAAh+QQJCgAAACwAAAAAEAAQAAADMgi63P7wCRHZnFVdmgHu2nFwlWCI3WGc3TSWhUFGxTAUkGCbtgENBMJAEJsxgMLWzpEAACH5BAkKAAAALAAAAAAQABAAAAMyCLrc/jDKSatlQtScKdceCAjDII7HcQ4EMTCpyrCuUBjCYRgHVtqlAiB1YhiCnlsRkAAAOwAAAAAAAAAAAA==";
 
     var STYLE = "\
 .wp-paginate.wp-paginate-comments li > *:not(.title) { \
@@ -179,6 +181,8 @@
 </div>';
 
     var JUMPER_ITEM_HTML = '<span class="unread-comments-jump"><a href="#{0}">#{1}</a></span>';
+
+    var LOADING_NOTICE_HTML = '<span class="comments-page-loading hidden"><img src="' + LOADING_SPINNER_DATA + '" />Loading... (<a href="{0}">Give up</a>) </span>';
 
     /* jshint ignore: end */
 
@@ -279,8 +283,17 @@
         return _storage;
     }
 
-    function getComicNumbers() {
-        var matches = URL_MATCHER.exec(window.location);
+    var currentLocation = window.location.toString();
+
+    /**
+     *
+     * @param [url] url to parse, or undefined for current page
+     * @returns {Object}
+     */
+    function getComicNumbers(url) {
+        if (!url) url = currentLocation;
+
+        var matches = URL_MATCHER.exec(url);
         return {
             recognized: !!matches,
             articleType: matches && matches[1],
@@ -299,6 +312,13 @@
 
     function getComicDataKey() {
         return "unread-comments-" + getComicNumbers().articleNumber;
+    }
+
+    function buildPageLink(comicNumbers) {
+        if (!comicNumbers.recognized) {
+            return "";
+        }
+        return "http://grrlpowercomic.com/" + comicNumbers.articleType + "/" + comicNumbers.articleNumber + "/comment-page-" + comicNumbers.page;
     }
 
     /**
@@ -435,6 +455,15 @@
         $controls.find('.unread-comments-mark').click(clickMarkRead);
         $controls.find('.unread-comments-clear').click(clickDeleteData);
         $controls.find('.unread-comments-set').click(clickPickDate);
+        $('.page, .prev, .next').off('click');
+        // Hidden flag feature gate
+        // to enable, do:
+        //  > window.localStorage.setItem('allowDynamic', true);
+        getStorage().getObject('allowDynamic', function(obj) {
+            if (obj) {
+                $('.page, .prev, .next').click(clickPageLink);
+            }
+        });
     }
 
     function doHighlight(readData) {
@@ -461,11 +490,10 @@
                 $allComments.length), 'success');
         }
 
-        insertJumperLinks();
+        insertJumperLinks($commentsToHighlight);
     }
 
-    function insertJumperLinks() {
-        var $highlighted = $('.comment.unread');
+    function insertJumperLinks($highlighted) {
         if ($highlighted.length > 0 && $highlighted.length < 10) {
             var $jumper = $('.unread-comments-jumper');
 
@@ -656,6 +684,76 @@
                 });
             }
         });
+    }
+
+    function clickPageLink(e) {
+        if (e.which !== 1) {
+            return; // left clicks ONLY
+        }
+
+        var $link = $(e.target),
+            requestUrl;
+
+        if ($link.hasClass('current')) {
+            requestUrl = buildPageLink(getComicNumbers());
+        } else {
+            requestUrl = buildPageLink(getComicNumbers($link.attr('href')));
+
+            if (!requestUrl) {
+                console.warn('failure to parse link?', $link);
+                return;
+            }
+        }
+
+        console.log("Clicked on page link");
+
+        var loading = jQuery.parseHTML(LOADING_NOTICE_HTML.format(requestUrl));
+        var $pager = $('#comment-wrapper .commentnav .wp-paginate-comments');
+        $pager.append(loading);
+
+        $link.off('click');
+        $('.comments-page-loading').removeClass('hidden');
+
+        $.ajax(requestUrl, {
+            dataType: 'html',
+            success: function(data, textStatus, jqXHR) {
+                console.info("Loaded comments page", textStatus, jqXHR);
+
+                var returnedDocument = jQuery.parseHTML(data),
+                    $returnedDocument = $(returnedDocument),
+                    $returnedComments = $returnedDocument.find('#comment-wrapper');
+
+                currentLocation = requestUrl; // this updates getComicNumbers()
+                if (history) {
+                    //history.replaceState(undefined, undefined, requestUrl);
+                }
+
+                getComicReadData(function(readData) {
+                    $('#comment-wrapper').remove();
+                    $($('#comment-wrapper-head')).after($returnedComments);
+                    _$comments = null;
+
+                    addControls(readData);
+                    doHighlight(readData);
+                    saveFirstVisit(readData);
+                });
+            },
+
+            error: function(jqXHR, textStatus, errorThrown) {
+                console.warn("Dynamic comments request failed, falling back to page load.", jqXHR, textStatus, errorThrown);
+
+                $('.comments-page-loading').addClass('hidden');
+                buttonResultMessage("Dynamic request failed.");
+                window.location.href = requestUrl;
+            },
+
+            complete: function() {
+            }
+        });
+
+        // do this LAST!
+        // don't want to break normal people.
+        e.preventDefault();
     }
 
     // ############################################################
