@@ -461,6 +461,9 @@
         //  > window.localStorage.allowDynamic = true;
         if (window.localStorage.allowDynamic) {
             $('.page, .prev, .next').click(clickPageLink);
+        } else {
+            console.info("Dynamic loading of other comment pages is disabled.");
+            console.info("To opt-in, type 'window.localStorage.allowDynamic = true;' below.");
         }
     }
 
@@ -723,7 +726,7 @@
 
                 currentLocation = requestUrl; // this updates getComicNumbers()
                 if (history) {
-                    //history.replaceState(undefined, undefined, requestUrl);
+                    history.replaceState(undefined, undefined, requestUrl);
                 }
 
                 getComicReadData(function(readData) {
