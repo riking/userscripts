@@ -5,7 +5,7 @@
 // @match http://grrlpowercomic.com/archives/*
 // @match http://grrlpowercomic.com/archives/*/comment-page-*
 // @require https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
-// @version 0.4.6
+// @version 0.4.7
 // ==/UserScript==
 
 /* jshint multistr: true */
@@ -26,6 +26,11 @@
         var a = window.localStorage;
     } catch (ex) {
         console.warn("localStorage access denied. Comment highlighting disabled.", ex);
+        return;
+    }
+
+    if (window.commentHighlightingOnWebpage) {
+        console.warn("Extension-based comment highlighting disabled in favor of server-provided version.");
         return;
     }
 
