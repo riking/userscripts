@@ -40,7 +40,19 @@
     var isExtension = false; // !!chrome.extension;
 
     var addJquery = function(callback) {
-        var finishFunc = function() {
+        if (window.jQuery) {
+            // jQuery is already loaded, yay
+            $ = window.$ = window.jQuery;
+            $('head style[data-x_userscript_comment_hlght="1"]:not(:last)').remove();
+            $('#comment-wrapper .unread-comments-controls').remove();
+            return callback();
+        }
+
+        // Add jQuery
+        var jq = document.createElement('script');
+        jq.src = "//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js";
+        jq.dataset.x_userscript_comment_hlght = "1";
+        jq.onload = function() {
             $ = window.$ = window.jQuery;
 
             // Remove prior script elements (for reloading in development)
@@ -50,16 +62,6 @@
 
             callback();
         };
-
-        if (window.jQuery) {
-            finishFunc();
-        }
-
-        // Add jQuery
-        var jq = document.createElement('script');
-        jq.src = "//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js";
-        jq.dataset.x_userscript_comment_hlght = "1";
-        jq.onload = finishFunc;
         document.getElementsByTagName('head')[0].appendChild(jq);
     };
 
