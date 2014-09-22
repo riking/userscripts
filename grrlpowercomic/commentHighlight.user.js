@@ -5,7 +5,7 @@
 // @match http://grrlpowercomic.com/archives/*
 // @match http://grrlpowercomic.com/archives/*/comment-page-*
 // @include http://grrlpowercomic.com/*
-// @grant none
+// @grant unsafeWindow
 // @require https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
 // @version 0.4.9
 // ==/UserScript==
@@ -24,14 +24,19 @@
         return;
     }
 
+    if (!unsafeWindow) {
+        // have greasemonkey behave like chrome extension content script
+        unsafeWindow = window;
+    }
+
     try {
-        var a = window.localStorage;
+        var a = unsafeWindow.localStorage;
     } catch (ex) {
         console.warn("localStorage access denied. Comment highlighting disabled.", ex);
         return;
     }
 
-    if (window.commentHighlightingOnWebpage) {
+    if (unsafeWindow.commentHighlightingOnWebpage) {
         console.warn("Extension-based comment highlighting disabled in favor of server-provided version.");
         return;
     }
@@ -207,8 +212,15 @@
     function getStorage() {
         if (_storage) return _storage;
 
-        var storage;
-        if (chrome && chrome.storage) {
+        var storage,
+            useChromeStorage = false;
+
+        try {
+            useChromeStorage = chrome && chrome.storage;
+        } catch (e) {
+        }
+
+        if (useChromeStorage) {
             storage = chrome.storage.sync;
 
             // Put in our internal API
@@ -246,28 +258,30 @@
                 });
             };
         } else {
+            var storagePrototype = unsafeWindow.Storage.prototype;
+
             // Put our internal API in the Storage prototype
             // localStorage is a synchronous API, but chrome.storage is synchronous
             // so we have to add an asynchronous wrapper
-            Storage.prototype.setObject = function(key, value, callback) {
+            storagePrototype.setObject = function(key, value, callback) {
                 this.setItem(key, JSON.stringify(value));
                 setTimeout(callback(), 0);
             };
 
-            Storage.prototype.getObject = function(key, callback) {
+            storagePrototype.getObject = function(key, callback) {
                 var value = JSON.parse(this.getItem(key));
                 setTimeout(function() {
                     callback(value);
                 }, 0);
             };
 
-            Storage.prototype.removeObject = function(key, callback) {
+            storagePrototype.removeObject = function(key, callback) {
                 this.removeItem(key);
                 setTimeout(callback(), 0);
             };
 
             try {
-                storage = window.localStorage;
+                storage = unsafeWindow.localStorage;
             } catch (e) {
             }
         }
@@ -461,7 +475,7 @@
         // Hidden flag feature gate
         // to enable, do:
         //  > window.localStorage.allowDynamic = true;
-        if (window.localStorage.allowDynamic) {
+        if (unsafeWindow.localStorage.allowDynamic) {
             $('.page, .prev, .next').click(clickPageLink);
         } else {
             console.info("Dynamic loading of other comment pages is disabled.");
