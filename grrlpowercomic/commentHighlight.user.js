@@ -11,7 +11,8 @@
 // ==/UserScript==
 
 /* jshint multistr: true */
-/* global $ */
+/* global unsafeWindow */
+/* global jQuery */
 
 (function() {
     "use strict";
@@ -19,18 +20,23 @@
     // ############################################################
     // ## Capabilities
 
-    if (typeof Storage === "undefined") {
+    var greaseMonkey = false;
+    try {
+        var a = unsafeWindow;
+        greaseMonkey = true;
+    } catch (e) {
+    }
+    if (!greaseMonkey) {
+        window.unsafeWindow = window;
+    }
+
+    if (typeof unsafeWindow.Storage === "undefined") {
         console.warn("localStorage not supported. Comment highlighting disabled.");
         return;
     }
 
-    if (!unsafeWindow) {
-        // have greasemonkey behave like chrome extension content script
-        unsafeWindow = window;
-    }
-
     try {
-        var a = unsafeWindow.localStorage;
+        var b = unsafeWindow.localStorage;
     } catch (ex) {
         console.warn("localStorage access denied. Comment highlighting disabled.", ex);
         return;
