@@ -7,7 +7,7 @@
 // @include http://grrlpowercomic.com/*
 // @grant unsafeWindow
 // @require https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
-// @version 0.4.9
+// @version 0.4.10
 // ==/UserScript==
 
 /* jshint multistr: true */
