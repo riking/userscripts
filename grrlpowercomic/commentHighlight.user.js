@@ -4,6 +4,9 @@
 // @description Highlights new comments on the comic pages since your last visit.
 // @match http://grrlpowercomic.com/archives/*
 // @match http://grrlpowercomic.com/archives/*/comment-page-*
+// @include http://grrlpowercomic.com/archives/*
+// @include http://grrlpowercomic.com/archives/*/comment-page-*
+// @grant none
 // @require https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
 // @version 0.4.8
 // ==/UserScript==
