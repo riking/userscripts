@@ -481,11 +481,10 @@
         // Hidden flag feature gate
         // to enable, do:
         //  > window.localStorage.allowDynamic = true;
-        if (unsafeWindow.localStorage.allowDynamic) {
+        if (!unsafeWindow.localStorage.noDynamic) {
+            console.info("Dynamic loading of other comment pages is enabled.");
+            console.info("To opt-in, type 'window.localStorage.noDynamic = true;' below.");
             $('.page, .prev, .next').click(clickPageLink);
-        } else {
-            console.info("Dynamic loading of other comment pages is disabled.");
-            console.info("To opt-in, type 'window.localStorage.allowDynamic = true;' below.");
         }
     }
 
