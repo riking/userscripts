@@ -7,7 +7,7 @@
 // @include http://grrlpowercomic.com/*
 // @grant unsafeWindow
 // @require https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
-// @version 0.4.11
+// @version 0.4.12
 // ==/UserScript==
 
 /* jshint multistr: true */
@@ -483,7 +483,7 @@
         //  > window.localStorage.allowDynamic = true;
         if (!unsafeWindow.localStorage.noDynamic) {
             console.info("Dynamic loading of other comment pages is enabled.");
-            console.info("To opt-in, type 'window.localStorage.noDynamic = true;' below.");
+            console.info("To opt-out, type 'window.localStorage.noDynamic = true;' below.");
             $('.page, .prev, .next').click(clickPageLink);
         }
     }

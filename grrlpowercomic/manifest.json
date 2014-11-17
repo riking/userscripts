@@ -1,7 +1,7 @@
 {
     "manifest_version": 2,
     "name": "Grrl Power Comment Highlighter",
-    "version": "0.4.11",
+    "version": "0.4.12",
 
     "description": "Highlights new comments on the Grrl Power comic pages when you come back to them.",
     "icons": {
