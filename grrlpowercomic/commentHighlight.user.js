@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name Grrl Power New Comment Highlighter
-// @namespace http://www.riking.org/userscripts
+// @namespace https://www.riking.org/userscripts
 // @description Highlights new comments on the comic pages since your last visit.
-// @match http://grrlpowercomic.com/archives/*
-// @match http://grrlpowercomic.com/archives/*/comment-page-*
-// @include http://grrlpowercomic.com/*
+// @match https://grrlpowercomic.com/archives/*
+// @match https://grrlpowercomic.com/archives/*/comment-page-*
+// @include https://grrlpowercomic.com/*
 // @grant unsafeWindow
 // @require https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
 // @version 0.4.12
@@ -340,7 +340,7 @@
         if (!comicNumbers.recognized) {
             return "";
         }
-        return "http://grrlpowercomic.com/" + comicNumbers.articleType + "/" + comicNumbers.articleNumber + "/comment-page-" + comicNumbers.page;
+        return "https://grrlpowercomic.com/" + comicNumbers.articleType + "/" + comicNumbers.articleNumber + "/comment-page-" + comicNumbers.page;
     }
 
     /**
