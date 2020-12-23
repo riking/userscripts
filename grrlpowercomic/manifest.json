@@ -11,8 +11,8 @@
     "author": "Riking",
     "content_scripts": [{
         "matches": [
-            "http://grrlpowercomic.com/archives/*",
-            "http://grrlpowercomic.com/archives/*/comment-page-*"
+            "https://grrlpowercomic.com/archives/*",
+            "https://grrlpowercomic.com/archives/*/comment-page-*"
         ],
         "js": ["jquery.min.js", "commentHighlight.user.js"]
     }]
